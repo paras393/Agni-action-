@@ -3,6 +3,9 @@
   const bbox = '75.70,30.05,76.10,30.45'; // Approximate Sangrur pilot extent, not district boundary.
   const minDistanceKm = 1.2;
   const sourceNames = {
+    VIIRS_SNPP_NRT: 'VIIRS Suomi NPP Near Real-Time',
+    VIIRS_NOAA20_NRT: 'VIIRS NOAA-20 Near Real-Time',
+    VIIRS_NOAA21_NRT: 'VIIRS NOAA-21 Near Real-Time',
     VIIRS_SNPP_SP: 'VIIRS Suomi NPP Standard Processing',
     VIIRS_NOAA20_SP: 'VIIRS NOAA-20 Standard Processing',
     VIIRS_NOAA21_SP: 'VIIRS NOAA-21 Standard Processing',
@@ -10,14 +13,14 @@
   };
   const keyForm = `
     <div class="eyebrow">NASA FIRMS CONNECTION</div>
-    <h2>Load historical fire detections</h2>
-    <p>Choose a historical satellite product and date range. Requests are sent in five-day chunks for the Sangrur pilot extent.</p>
+    <h2>Load NASA FIRMS detections</h2>
+    <p>Near-real-time data is loaded automatically when the app opens. Use this panel to choose another NASA product or date range for the Sangrur pilot extent.</p>
     <div class="firms-fields">
-      <label class="firms-label">Satellite product<select class="control" id="firmsSource"><option value="VIIRS_SNPP_SP">VIIRS Suomi NPP · historical</option><option value="VIIRS_NOAA20_SP">VIIRS NOAA-20 · historical</option><option value="VIIRS_NOAA21_SP">VIIRS NOAA-21 · historical</option><option value="MODIS_SP">MODIS · historical</option></select></label>
-      <label class="firms-label">From<input class="control" id="firmsFrom" type="date" value="2020-10-20"></label>
-      <label class="firms-label">Through<input class="control" id="firmsThrough" type="date" value="2022-11-10"></label>
+    <label class="firms-label">Satellite product<select class="control" id="firmsSource"><option value="VIIRS_NOAA21_NRT">VIIRS NOAA-21 · near-real-time</option><option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20 · near-real-time</option><option value="VIIRS_SNPP_NRT">VIIRS Suomi NPP · near-real-time</option><option value="VIIRS_SNPP_SP">VIIRS Suomi NPP · historical</option><option value="VIIRS_NOAA20_SP">VIIRS NOAA-20 · historical</option><option value="VIIRS_NOAA21_SP">VIIRS NOAA-21 · historical</option><option value="MODIS_SP">MODIS · historical</option></select></label>
+    <label class="firms-label">From<input class="control" id="firmsFrom" type="date"></label>
+    <label class="firms-label">Through<input class="control" id="firmsThrough" type="date"></label>
     </div>
-    <p class="firms-disclaimer">The local server reads the MAP_KEY from the Git-ignored <code>.env</code> file. The key is not sent to browser code. If the server or NASA cannot be reached, the local illustrative dataset remains active.</p>
+    <p class="firms-disclaimer">The Netlify Function reads the MAP_KEY from a server-side secret. The key is never sent to browser code. If NASA cannot be reached, a clearly labelled local fallback remains active.</p>
     <div id="firmsStatus" role="status" aria-live="polite"></div>
     <div class="story-buttons"><button class="back" id="firmsCancel" type="button">Cancel</button><button class="primary" id="firmsLoad" type="button">Load NASA FIRMS</button></div>
     <p class="firms-link"><a href="https://firms.modaps.eosdis.nasa.gov/api/map_key/" target="_blank" rel="noreferrer">Get a free MAP_KEY from NASA FIRMS ↗</a></p>`;
@@ -105,16 +108,18 @@
     };
   }
 
-  async function loadNasaData() {
-    const start = document.getElementById('firmsFrom').value;
-    const end = document.getElementById('firmsThrough').value;
-    const source = document.getElementById('firmsSource').value;
+  async function loadNasaData(options = {}) {
+    const liveRange = options.auto ? defaultLiveRange() : null;
+    const start = options.start || document.getElementById('firmsFrom')?.value || liveRange.start;
+    const end = options.end || document.getElementById('firmsThrough')?.value || liveRange.end;
+    const source = options.source || document.getElementById('firmsSource')?.value || 'VIIRS_NOAA21_NRT';
     const status = document.getElementById('firmsStatus');
     const button = document.getElementById('firmsLoad');
-    if (!start || !end || start > end) { status.textContent = 'Choose a valid date range.'; return; }
+    const setStatus = message => { if (status) status.textContent = message; };
+    if (!start || !end || start > end) { setStatus('Choose a valid date range.'); return; }
     const dayCount = Math.floor((Date.parse(end + 'T00:00:00Z') - Date.parse(start + 'T00:00:00Z')) / 86400000) + 1;
-    if (dayCount > 800) { status.textContent = 'Choose a range of 800 days or less to keep requests manageable.'; return; }
-    button.disabled = true;
+    if (dayCount > 800) { setStatus('Choose a range of 800 days or less to keep requests manageable.'); return; }
+    if (button) button.disabled = true;
     const records = [];
     try {
       let cursor = Date.parse(start + 'T00:00:00Z'), last = Date.parse(end + 'T00:00:00Z');
@@ -123,7 +128,7 @@
         const days = Math.min(5, Math.floor((last - cursor) / 86400000) + 1);
         const date = new Date(cursor).toISOString().slice(0, 10);
         requestNumber++;
-        status.textContent = 'Requesting historical detections · ' + date + ' · chunk ' + requestNumber + '…';
+        setStatus('Requesting NASA FIRMS detections · ' + date + ' · chunk ' + requestNumber + '…');
         const params = new URLSearchParams({ source, start: date, days: String(days) });
         const response = await fetch('/api/firms?' + params.toString(), { cache: 'no-store' });
         const text = await response.text();
@@ -160,12 +165,18 @@
       document.getElementById('mZones').textContent = group(records).size;
       document.getElementById('mSeasons').textContent = unique(records.map(record => record.season)).length;
       renderMap();
-      status.textContent = 'Loaded ' + records.length + ' NASA FIRMS detections across ' + group(records).size + ' computed spatial clusters.';
+      setStatus('Loaded ' + records.length + ' NASA FIRMS detections across ' + group(records).size + ' computed spatial clusters.');
     } catch (error) {
-      status.textContent = error instanceof TypeError ? 'Could not reach NASA FIRMS from this browser. Check network/CORS access; the local illustrative dataset remains active.' : error.message;
+      setStatus(error instanceof TypeError ? 'Could not reach NASA FIRMS from this browser. Check network/CORS access; the local illustrative dataset remains active.' : error.message);
     } finally {
-      button.disabled = false;
+      if (button) button.disabled = false;
     }
+  }
+
+  function defaultLiveRange() {
+    const end = new Date();
+    const start = new Date(end.getTime() - 2 * 86400000);
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
   }
 
   function install() {
@@ -182,6 +193,11 @@
       document.getElementById('firmsCancel').onclick = () => modal.classList.remove('open');
       document.getElementById('firmsLoad').onclick = loadNasaData;
     });
+    const autoLoad = () => {
+      if (!state.fires.length) return setTimeout(autoLoad, 100);
+      loadNasaData({ auto: true });
+    };
+    window.addEventListener('load', () => setTimeout(autoLoad, 250), { once: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
   else install();

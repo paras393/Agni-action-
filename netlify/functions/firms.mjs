@@ -1,4 +1,4 @@
-const products = new Set(['VIIRS_SNPP_SP', 'VIIRS_NOAA20_SP', 'VIIRS_NOAA21_SP', 'MODIS_SP']);
+const products = new Set(['VIIRS_SNPP_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'VIIRS_SNPP_SP', 'VIIRS_NOAA20_SP', 'VIIRS_NOAA21_SP', 'MODIS_SP']);
 const area = '75.70,30.05,76.10,30.45';
 
 function jsonError(status, error) {
