@@ -42,6 +42,9 @@
     });
     return selected.sort((a, b) => a.index - b.index).map(item => item.record);
   };
+  function visiblePointLimit() {
+    return Math.min(MAX_MAP_POINTS, Math.max(8, Math.round(15 * state.zoom)));
+  }
 
   const plot = document.getElementById('mapPlot');
   const layer = document.getElementById('points');
@@ -77,7 +80,7 @@
     document.getElementById('eastCoord').textContent = bounds.maxLon.toFixed(2) + '°';
     document.getElementById('westCoord').textContent = bounds.minLon.toFixed(2) + '°';
   }
-  function setZoom(value) { state.zoom = Math.max(1, Math.min(2.2, value)); renderMap(); }
+  function setZoom(value) { state.zoom = Math.round(Math.max(0.5, Math.min(2.2, value)) * 100) / 100; renderMap(); }
 
   window.renderMap = function renderMap() {
     const records = filtered();
@@ -85,12 +88,13 @@
     const allById = new Map(allClusters.map(c => [c.id, c]));
     const allowed = state.recurring ? allClusters.filter(c => c.seasons.length >= 2).map(c => c.id) : allClusters.map(c => c.id);
     const shown = records.filter(f => allowed.includes(f.cluster_id));
-    const mapPoints = window.sampleMapPoints(shown, MAX_MAP_POINTS);
+    const pointLimit = visiblePointLimit();
+    const mapPoints = window.sampleMapPoints(shown, pointLimit);
     const visibleClusters = clusters(shown).sort((a, b) => b.records.length - a.records.length || b.confidence - a.confidence);
     const bounds = dataBounds(state.fires);
     document.getElementById('empty').hidden = shown.length > 0;
     drawGeography(shown.length ? shown : state.fires, bounds);
-    pointCount.textContent = mapPoints.length + ' of ' + shown.length + ' filtered detections plotted · max ' + MAX_MAP_POINTS;
+    pointCount.textContent = mapPoints.length + ' of ' + shown.length + ' filtered detections plotted · zoom cap ' + pointLimit;
 
     layer.querySelectorAll('.point,.cluster-field,.cluster-marker').forEach(n => n.remove());
 

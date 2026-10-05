@@ -12,18 +12,17 @@
     MODIS_SP: 'MODIS Standard Processing'
   };
   const keyForm = `
-    <div class="eyebrow">NASA FIRMS CONNECTION</div>
-    <h2>Load NASA FIRMS detections</h2>
-    <p>Near-real-time data is loaded automatically when the app opens. Use this panel to choose another NASA product or date range for the Sangrur pilot extent.</p>
+    <div class="eyebrow">DATE & SATELLITE EXPLORER</div>
+    <h2>Explore fire points by time</h2>
+    <p>Choose a satellite product and date range to compare fire detections from different times in the Sangrur pilot area. NASA data loads with the access already configured for this app; you do not need to enter or connect a key.</p>
     <div class="firms-fields">
     <label class="firms-label">Satellite product<select class="control" id="firmsSource"><option value="VIIRS_NOAA21_NRT">VIIRS NOAA-21 · near-real-time</option><option value="VIIRS_NOAA20_NRT">VIIRS NOAA-20 · near-real-time</option><option value="VIIRS_SNPP_NRT">VIIRS Suomi NPP · near-real-time</option><option value="VIIRS_SNPP_SP">VIIRS Suomi NPP · historical</option><option value="VIIRS_NOAA20_SP">VIIRS NOAA-20 · historical</option><option value="VIIRS_NOAA21_SP">VIIRS NOAA-21 · historical</option><option value="MODIS_SP">MODIS · historical</option></select></label>
     <label class="firms-label">From<input class="control" id="firmsFrom" type="date"></label>
     <label class="firms-label">Through<input class="control" id="firmsThrough" type="date"></label>
     </div>
-    <p class="firms-disclaimer">The Netlify Function reads the MAP_KEY from a server-side secret. The key is never sent to browser code. If NASA cannot be reached, a clearly labelled local fallback remains active.</p>
+    <p class="firms-disclaimer">This app uses its configured NASA access automatically. If NASA cannot be reached, a clearly labelled local fallback remains active.</p>
     <div id="firmsStatus" role="status" aria-live="polite"></div>
-    <div class="story-buttons"><button class="back" id="firmsCancel" type="button">Cancel</button><button class="primary" id="firmsLoad" type="button">Load NASA FIRMS</button></div>
-    <p class="firms-link"><a href="https://firms.modaps.eosdis.nasa.gov/api/map_key/" target="_blank" rel="noreferrer">Get a free MAP_KEY from NASA FIRMS ↗</a></p>`;
+    <div class="story-buttons"><button class="back" id="firmsCancel" type="button">Cancel</button><button class="primary" id="firmsLoad" type="button">Show selected detections</button></div>`;
 
   function csvRows(text) {
     const rows = [];
@@ -188,7 +187,8 @@
     if (!mapHow || !modal) return;
     const connect = document.createElement('button');
     connect.type = 'button'; connect.className = 'control'; connect.id = 'connectFirms';
-    connect.textContent = 'Connect NASA FIRMS ↗';
+    connect.textContent = 'Explore by date ↗';
+    connect.title = 'Choose a satellite and date range to compare fire detections.';
     mapHow.insertAdjacentElement('afterend', connect);
     connect.addEventListener('click', () => {
       modal.querySelector('.modal').innerHTML = keyForm;
