@@ -7,40 +7,51 @@
     if (records.length <= maximum) return records;
     if (!maximum) return [];
 
+    const entries = records.map((record, index) => ({
+      record, index,
+      year: String(record.season || String(record.acq_date || '').slice(0, 4) || 'unknown'),
+      clusterId: record.cluster_id || record.cluster_name || 'unclustered'
+    }));
     const grouped = new Map();
-    records.forEach((record, index) => {
-      const id = record.cluster_id || record.cluster_name || 'unclustered';
-      if (!grouped.has(id)) grouped.set(id, []);
-      grouped.get(id).push({ record, index });
+    entries.forEach(entry => {
+      if (!grouped.has(entry.clusterId)) grouped.set(entry.clusterId, []);
+      grouped.get(entry.clusterId).push(entry);
     });
-    const groups = [...grouped.entries()].map(([id, rows]) => ({ id, rows: rows.sort((a, b) =>
-      (a.record.latitude - b.record.latitude) || (a.record.longitude - b.record.longitude) ||
-      String(a.record.acq_date || '').localeCompare(String(b.record.acq_date || '')) || a.index - b.index
-    ) })).sort((a, b) => b.rows.length - a.rows.length || String(a.id).localeCompare(String(b.id))).slice(0, maximum);
-
-    const quotas = groups.map(() => 1);
-    let remaining = maximum - groups.length;
-    while (remaining > 0) {
-      let best = -1, bestScore = -1;
-      groups.forEach((group, index) => {
-        if (quotas[index] >= group.rows.length) return;
-        const score = Math.sqrt(group.rows.length) / (quotas[index] + 1);
-        if (score > bestScore) { best = index; bestScore = score; }
-      });
-      if (best < 0) break;
-      quotas[best]++;
-      remaining--;
+    const stats = new Map([...grouped.entries()].map(([id, rows]) => [id, {
+      seasons: new Set(rows.map(entry => entry.year)),
+      confidence: rows.reduce((sum, entry) => sum + (Number(entry.record.confidence) || 0), 0) / rows.length,
+      size: rows.length
+    }]));
+    const years = [...new Set(entries.map(entry => entry.year))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const selected = [], chosen = new Set(), represented = new Set();
+    const rank = (a, b) => {
+      const aSeen = represented.has(a.clusterId + '|' + a.year), bSeen = represented.has(b.clusterId + '|' + b.year);
+      if (aSeen !== bSeen) return aSeen ? 1 : -1;
+      const sa = stats.get(a.clusterId), sb = stats.get(b.clusterId);
+      return sb.seasons.size - sa.seasons.size || sb.confidence - sa.confidence || sb.size - sa.size ||
+        (Number(b.record.confidence) || 0) - (Number(a.record.confidence) || 0) || a.index - b.index;
+    };
+    function addBalanced(pool, target) {
+      const byYear = new Map(years.map(year => [year, pool.filter(entry => entry.year === year)]));
+      while (selected.length < target) {
+        let added = false;
+        for (const year of years) {
+          if (selected.length >= target) break;
+          const next = byYear.get(year).filter(entry => !chosen.has(entry.index)).sort(rank)[0];
+          if (!next) continue;
+          selected.push(next); chosen.add(next.index); represented.add(next.clusterId + '|' + next.year); added = true;
+        }
+        if (!added) break;
+      }
     }
 
-    const selected = [];
-    groups.forEach((group, groupIndex) => {
-      const count = Math.min(quotas[groupIndex], group.rows.length);
-      for (let slot = 0; slot < count; slot++) {
-        const index = Math.min(group.rows.length - 1, Math.floor((slot + 0.5) * group.rows.length / count));
-        selected.push(group.rows[index]);
-      }
-    });
-    return selected.sort((a, b) => a.index - b.index).map(item => item.record);
+    const lowerConfidence = entries.filter(entry => (Number(entry.record.confidence) || 0) < 60);
+    const lowerQuota = Math.min(maximum, lowerConfidence.length, Math.max(1, Math.round(maximum * 0.1)));
+    if (lowerQuota) addBalanced(lowerConfidence, lowerQuota);
+    const recurring = entries.filter(entry => stats.get(entry.clusterId).seasons.size >= 2);
+    if (recurring.length) addBalanced(recurring, maximum);
+    addBalanced(entries, maximum);
+    return selected.sort((a, b) => a.index - b.index).map(entry => entry.record);
   };
   function visiblePointLimit() {
     return Math.min(MAX_MAP_POINTS, Math.max(8, Math.round(15 * state.zoom)));
@@ -90,7 +101,7 @@
     const shown = records.filter(f => allowed.includes(f.cluster_id));
     const pointLimit = visiblePointLimit();
     const mapPoints = window.sampleMapPoints(shown, pointLimit);
-    const visibleClusters = clusters(shown).sort((a, b) => b.records.length - a.records.length || b.confidence - a.confidence);
+    const visibleClusters = clusters(shown).sort((a, b) => b.seasons.length - a.seasons.length || b.confidence - a.confidence || b.records.length - a.records.length);
     const bounds = dataBounds(state.fires);
     document.getElementById('empty').hidden = shown.length > 0;
     drawGeography(shown.length ? shown : state.fires, bounds);
@@ -99,7 +110,8 @@
     layer.querySelectorAll('.point,.cluster-field,.cluster-marker').forEach(n => n.remove());
 
     const strongest = visibleClusters[0];
-    visibleClusters.forEach(c => {
+    const sampledClusterIds = new Set(mapPoints.map(record => record.cluster_id));
+    visibleClusters.filter(c => sampledClusterIds.has(c.id)).slice(0, pointLimit).forEach(c => {
       const full = allById.get(c.id), p = projection(bounds, full || c);
       const kind = category(full || c) === 'Strong recurring signal' ? 'strong' : category(full || c) === 'Moderate recurring signal' ? 'moderate' : 'lower';
       const field = document.createElement('div');
@@ -109,7 +121,7 @@
       layer.append(field);
     });
     mapPoints.forEach(f => {
-      const c = allById.get(f.cluster_id), p = projection(bounds, f), kind = category(c) === 'Strong recurring signal' ? 'strong' : category(c) === 'Moderate recurring signal' ? 'moderate' : f.confidence < 60 ? 'lower' : 'isolated';
+      const c = allById.get(f.cluster_id), p = projection(bounds, f), kind = f.confidence < 60 ? 'lower' : category(c) === 'Strong recurring signal' ? 'strong' : category(c) === 'Moderate recurring signal' ? 'moderate' : 'isolated';
       const diameter = Math.round(7 + f.confidence / 36 + Math.min(c.seasons.length, 3) * .7);
       const point = document.createElement('button');
       point.type = 'button'; point.className = 'point ' + kind;

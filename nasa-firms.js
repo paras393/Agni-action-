@@ -11,6 +11,11 @@
     VIIRS_NOAA21_SP: 'VIIRS NOAA-21 Standard Processing',
     MODIS_SP: 'MODIS Standard Processing'
   };
+  const AUTO_SHOWCASE_RANGES = [
+    { start: '2020-11-01', end: '2020-11-01' },
+    { start: '2021-11-01', end: '2021-11-01' },
+    { start: '2022-11-01', end: '2022-11-01' }
+  ];
   const keyForm = `
     <div class="eyebrow">DATE & SATELLITE EXPLORER</div>
     <h2>Explore fire points by time</h2>
@@ -96,7 +101,7 @@
   function normalizeRow(row, source, index) {
     const latitude = Number(row.latitude), longitude = Number(row.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !row.acq_date) return null;
-    const satellite = row.satellite || (source.startsWith('MODIS') ? 'MODIS' : source.includes('NOAA20') ? 'NOAA-20' : source.includes('NOAA21') ? 'NOAA-21' : 'Suomi NPP');
+    const satellite = source.startsWith('MODIS') ? 'MODIS' : source.includes('NOAA20') ? 'NOAA-20' : source.includes('NOAA21') ? 'NOAA-21' : 'Suomi NPP';
     return {
       id: 'firms-' + row.acq_date + '-' + row.acq_time + '-' + index,
       latitude, longitude, acq_date: row.acq_date, season: row.acq_date.slice(0, 4),
@@ -131,45 +136,47 @@
   }
 
   async function loadNasaData(options = {}) {
-    const liveRange = options.auto ? defaultLiveRange() : null;
-    const start = options.start || document.getElementById('firmsFrom')?.value || liveRange.start;
-    const end = options.end || document.getElementById('firmsThrough')?.value || liveRange.end;
+    const liveRange = options.auto && !options.ranges ? defaultLiveRange() : null;
+    const start = options.start || document.getElementById('firmsFrom')?.value || liveRange?.start || '';
+    const end = options.end || document.getElementById('firmsThrough')?.value || liveRange?.end || '';
     const source = options.source || document.getElementById('firmsSource')?.value || 'VIIRS_NOAA21_NRT';
     const status = document.getElementById('firmsStatus');
     const button = document.getElementById('firmsLoad');
     const setStatus = message => { if (status) status.textContent = message; };
-    if (!start || !end || start > end) { setStatus('Choose a valid date range.'); return; }
-    const dayCount = Math.floor((Date.parse(end + 'T00:00:00Z') - Date.parse(start + 'T00:00:00Z')) / 86400000) + 1;
+    const requestRanges = Array.isArray(options.ranges) ? options.ranges : [{ start, end }];
+    const daysIn = range => Math.floor((Date.parse(range.end + 'T00:00:00Z') - Date.parse(range.start + 'T00:00:00Z')) / 86400000) + 1;
+    const validRanges = requestRanges.length && requestRanges.every(range => range.start && range.end && range.start <= range.end && Number.isFinite(Date.parse(range.start + 'T00:00:00Z')) && Number.isFinite(Date.parse(range.end + 'T00:00:00Z')));
+    if (!validRanges) { setStatus('Choose a valid date range.'); return; }
+    const dayCount = requestRanges.reduce((sum, range) => sum + daysIn(range), 0);
     if (dayCount > 800) { setStatus('Choose a range of 800 days or less to keep requests manageable.'); return; }
-    const totalRequests = Math.ceil(dayCount / 5);
+    const totalRequests = requestRanges.reduce((sum, range) => sum + Math.ceil(daysIn(range) / 5), 0);
     if (button) button.disabled = true;
     const records = [];
     updateNasaProgress(0, totalRequests, 'Fetching actual NASA FIRMS data…', { indeterminate: true });
     try {
-      let cursor = Date.parse(start + 'T00:00:00Z'), last = Date.parse(end + 'T00:00:00Z');
       let requestNumber = 0;
-      while (cursor <= last) {
-        const days = Math.min(5, Math.floor((last - cursor) / 86400000) + 1);
-        const date = new Date(cursor).toISOString().slice(0, 10);
-        requestNumber++;
-        const progressMessage = 'Fetching actual NASA FIRMS data · ' + date + ' · chunk ' + requestNumber + ' of ' + totalRequests + '…';
-        setStatus(progressMessage);
-        updateNasaProgress(requestNumber - 1, totalRequests, progressMessage, { indeterminate: true });
-        const params = new URLSearchParams({ source, start: date, days: String(days) });
-        const response = await fetch('/api/firms?' + params.toString(), { cache: 'no-store' });
-        const text = await response.text();
-        if (!response.ok) {
-          let message = 'NASA FIRMS request failed with HTTP ' + response.status + '.';
-          try { message = JSON.parse(text).error || message; } catch (_) {}
-          throw new Error(message);
+      for (const range of requestRanges) {
+        let cursor = Date.parse(range.start + 'T00:00:00Z'), last = Date.parse(range.end + 'T00:00:00Z');
+        while (cursor <= last) {
+          const days = Math.min(5, Math.floor((last - cursor) / 86400000) + 1);
+          const date = new Date(cursor).toISOString().slice(0, 10);
+          requestNumber++;
+          const progressMessage = 'Fetching actual NASA FIRMS data · ' + date + ' · chunk ' + requestNumber + ' of ' + totalRequests + '…';
+          setStatus(progressMessage);
+          updateNasaProgress(requestNumber - 1, totalRequests, progressMessage, { indeterminate: true });
+          const params = new URLSearchParams({ source, start: date, days: String(days) });
+          const response = await fetch('/api/firms?' + params.toString(), { cache: 'no-store' });
+          const text = await response.text();
+          if (!response.ok) {
+            let message = 'NASA FIRMS request failed with HTTP ' + response.status + '.';
+            try { message = JSON.parse(text).error || message; } catch (_) {}
+            throw new Error(message);
+          }
+          if (/^invalid map key|map key not valid|error/i.test(text.trim())) throw new Error('NASA FIRMS did not accept this MAP_KEY or request.');
+          csvRows(text).forEach(row => { const record = normalizeRow(row, source, records.length); if (record) records.push(record); });
+          updateNasaProgress(requestNumber, totalRequests, 'Received actual NASA FIRMS data · chunk ' + requestNumber + ' of ' + totalRequests + '.');
+          cursor += days * 86400000;
         }
-        if (/^invalid map key|map key not valid|error/i.test(text.trim())) throw new Error('NASA FIRMS did not accept this MAP_KEY or request.');
-        csvRows(text).forEach(row => { const record = normalizeRow(row, source, records.length); if (record) records.push(record); });
-        updateNasaProgress(requestNumber, totalRequests, 'Received actual NASA FIRMS data · chunk ' + requestNumber + ' of ' + totalRequests + '.');
-        cursor += days * 86400000;
-      }
-      if (!records.length && options.auto && source.endsWith('_NRT')) {
-        return loadNasaData({ auto: true, source: 'VIIRS_SNPP_SP', start: '2022-11-01', end: '2022-11-01' });
       }
       if (!records.length) throw new Error('NASA returned no detections for this product, date range, and pilot extent. Your local illustrative data is still active.');
       prepareClusters(records);
@@ -184,9 +191,8 @@
       state.fires = records;
       state.selectedCluster = null;
       state.selectedFireId = null;
-      state.season = 'all'; state.satellite = 'all'; state.recurring = false;
+      state.season = 'all'; state.recurring = false;
       document.getElementById('seasonFilter').value = 'all';
-      document.getElementById('satFilter').value = 'all';
       document.getElementById('recurringFilter').checked = false;
       document.querySelectorAll('#heroPlot .signal').forEach(node => node.remove());
       renderProvenance(dataset);
@@ -206,12 +212,6 @@
     }
   }
 
-  function defaultLiveRange() {
-    const end = new Date();
-    const start = new Date(end.getTime() - 4 * 86400000);
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
-  }
-
   function install() {
     const mapHow = document.getElementById('mapHow');
     const modal = document.getElementById('modal');
@@ -229,7 +229,7 @@
     });
     const autoLoad = () => {
       if (!state.fires.length) return setTimeout(autoLoad, 100);
-      loadNasaData({ auto: true });
+      loadNasaData({ auto: true, source: 'VIIRS_SNPP_SP', ranges: AUTO_SHOWCASE_RANGES });
     };
     window.addEventListener('load', () => setTimeout(autoLoad, 250), { once: true });
   }
