@@ -1,0 +1,31 @@
+{
+  "dataset_status": "illustrative_demo_data",
+  "warning": "These points are synthetic demo records for UI development. Do not present them as actual NASA observations.",
+  "pilot_area": "Sangrur district, Punjab, India",
+  "schema_note": "Field names mirror NASA FIRMS active-fire data where possible.",
+  "source_context": [
+    "https://www.earthdata.nasa.gov/data/tools/firms",
+    "https://www.ceew.in/publications/how-can-satellite-borne-remote-sensing-capture-crop-burning-and-farm-fires",
+    "https://creams.iari.res.in/?p=6564"
+  ],
+  "fires": [
+    {"id":"demo-001","cluster_id":"C1","cluster_name":"Northwest recurring cluster","latitude":30.3052,"longitude":75.8461,"acq_date":"2020-10-24","season":"2020","satellite":"VIIRS","confidence":82,"frp":18.4,"source":"illustrative-demo"},
+    {"id":"demo-002","cluster_id":"C1","cluster_name":"Northwest recurring cluster","latitude":30.3081,"longitude":75.8498,"acq_date":"2020-11-02","season":"2020","satellite":"VIIRS","confidence":77,"frp":14.1,"source":"illustrative-demo"},
+    {"id":"demo-003","cluster_id":"C1","cluster_name":"Northwest recurring cluster","latitude":30.3064,"longitude":75.8512,"acq_date":"2021-10-28","season":"2021","satellite":"MODIS","confidence":74,"frp":16.8,"source":"illustrative-demo"},
+    {"id":"demo-004","cluster_id":"C1","cluster_name":"Northwest recurring cluster","latitude":30.3110,"longitude":75.8485,"acq_date":"2021-11-05","season":"2021","satellite":"VIIRS","confidence":86,"frp":21.5,"source":"illustrative-demo"},
+    {"id":"demo-005","cluster_id":"C1","cluster_name":"Northwest recurring cluster","latitude":30.3048,"longitude":75.8520,"acq_date":"2022-10-31","season":"2022","satellite":"VIIRS","confidence":89,"frp":24.2,"source":"illustrative-demo"},
+    {"id":"demo-006","cluster_id":"C1","cluster_name":"Northwest recurring cluster","latitude":30.3092,"longitude":75.8541,"acq_date":"2022-11-06","season":"2022","satellite":"VIIRS","confidence":81,"frp":19.7,"source":"illustrative-demo"},
+    {"id":"demo-007","cluster_id":"C2","cluster_name":"East corridor cluster","latitude":30.2730,"longitude":76.0122,"acq_date":"2020-10-29","season":"2020","satellite":"VIIRS","confidence":69,"frp":11.6,"source":"illustrative-demo"},
+    {"id":"demo-008","cluster_id":"C2","cluster_name":"East corridor cluster","latitude":30.2771,"longitude":76.0164,"acq_date":"2020-11-04","season":"2020","satellite":"MODIS","confidence":72,"frp":13.8,"source":"illustrative-demo"},
+    {"id":"demo-009","cluster_id":"C2","cluster_name":"East corridor cluster","latitude":30.2756,"longitude":76.0148,"acq_date":"2021-10-30","season":"2021","satellite":"VIIRS","confidence":78,"frp":15.4,"source":"illustrative-demo"},
+    {"id":"demo-010","cluster_id":"C2","cluster_name":"East corridor cluster","latitude":30.2790,"longitude":76.0190,"acq_date":"2022-11-01","season":"2022","satellite":"VIIRS","confidence":84,"frp":17.1,"source":"illustrative-demo"},
+    {"id":"demo-011","cluster_id":"C3","cluster_name":"South agricultural cluster","latitude":30.1351,"longitude":75.8063,"acq_date":"2020-10-22","season":"2020","satellite":"MODIS","confidence":63,"frp":9.8,"source":"illustrative-demo"},
+    {"id":"demo-012","cluster_id":"C3","cluster_name":"South agricultural cluster","latitude":30.1390,"longitude":75.8107,"acq_date":"2020-11-08","season":"2020","satellite":"VIIRS","confidence":71,"frp":12.2,"source":"illustrative-demo"},
+    {"id":"demo-013","cluster_id":"C3","cluster_name":"South agricultural cluster","latitude":30.1374,"longitude":75.8091,"acq_date":"2021-10-26","season":"2021","satellite":"VIIRS","confidence":75,"frp":14.0,"source":"illustrative-demo"},
+    {"id":"demo-014","cluster_id":"C3","cluster_name":"South agricultural cluster","latitude":30.1412,"longitude":75.8120,"acq_date":"2022-10-27","season":"2022","satellite":"VIIRS","confidence":79,"frp":15.9,"source":"illustrative-demo"},
+    {"id":"demo-015","cluster_id":"C4","cluster_name":"Isolated low-confidence cluster","latitude":30.3652,"longitude":75.8840,"acq_date":"2020-11-03","season":"2020","satellite":"MODIS","confidence":48,"frp":6.4,"source":"illustrative-demo"},
+    {"id":"demo-016","cluster_id":"C4","cluster_name":"Isolated low-confidence cluster","latitude":30.3680,"longitude":75.8871,"acq_date":"2021-11-07","season":"2021","satellite":"VIIRS","confidence":52,"frp":7.1,"source":"illustrative-demo"},
+    {"id":"demo-017","cluster_id":"C4","cluster_name":"Isolated low-confidence cluster","latitude":30.3667,"longitude":75.8890,"acq_date":"2022-11-05","season":"2022","satellite":"VIIRS","confidence":55,"frp":8.0,"source":"illustrative-demo"},
+    {"id":"demo-018","cluster_id":"C4","cluster_name":"Isolated low-confidence cluster","latitude":30.3639,"longitude":75.8818,"acq_date":"2022-11-06","season":"2022","satellite":"MODIS","confidence":44,"frp":5.7,"source":"illustrative-demo"}
+  ]
+}

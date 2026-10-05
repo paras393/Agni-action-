@@ -1,0 +1,9 @@
+[build]
+  command = "node scripts/build.mjs"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/firms"
+  to = "/.netlify/functions/firms"
+  status = 200
