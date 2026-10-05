@@ -25,14 +25,11 @@
     const records = dataset.fires || [];
     const dates = records.map(record => record.acq_date).filter(Boolean).sort();
     const seasons = [...new Set(records.map(record => record.season).filter(Boolean))].sort();
-    const satelliteValues = [...new Set(records.map(record => record.satellite).filter(Boolean))].sort();
-    const seasonSelect = document.getElementById('seasonFilter'), satelliteSelect = document.getElementById('satFilter');
-    const selectedSeason = seasonSelect.value, selectedSatellite = satelliteSelect.value;
+    const seasonSelect = document.getElementById('seasonFilter');
+    const selectedSeason = seasonSelect.value;
     seasonSelect.innerHTML = '<option value="all">All seasons</option>' + seasons.map(value => '<option value="' + value + '">' + value + '</option>').join('');
-    satelliteSelect.innerHTML = '<option value="all">All sources</option>' + satelliteValues.map(value => '<option value="' + value + '">' + value + '</option>').join('');
     seasonSelect.value = seasons.includes(selectedSeason) ? selectedSeason : 'all';
-    satelliteSelect.value = satelliteValues.includes(selectedSatellite) ? selectedSatellite : 'all';
-    state.season = seasonSelect.value; state.satellite = satelliteSelect.value;
+    state.season = seasonSelect.value;
     const satellites = entries(records.map(record => record.satellite));
     const sourceValues = [...new Set(records.map(record => record.source).filter(Boolean))];
     const synthetic = dataset.dataset_status === 'illustrative_demo_data' || sourceValues.some(source => /demo|illustrative|synthetic/i.test(source));
