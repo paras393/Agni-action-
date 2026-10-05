@@ -107,6 +107,29 @@
     };
   }
 
+  let progressTimer;
+  function updateNasaProgress(completed, total, message, options = {}) {
+    clearTimeout(progressTimer);
+    document.querySelectorAll('[data-nasa-progress]').forEach(panel => {
+      panel.hidden = false;
+      panel.classList.toggle('error', !!options.error);
+      const messageNode = panel.querySelector('[data-progress-message]');
+      const detailNode = panel.querySelector('[data-progress-detail]');
+      const bar = panel.querySelector('[data-progress-bar]');
+      if (messageNode) messageNode.textContent = message;
+      if (detailNode) detailNode.textContent = total ? (options.indeterminate ? 'Request ' + Math.min(completed + 1, total) + ' of ' + total : completed + ' of ' + total + ' request chunks') : '';
+      if (bar) {
+        bar.max = Math.max(1, total || 1);
+        if (options.indeterminate) bar.removeAttribute('value');
+        else bar.value = Math.min(completed, total || 1);
+        bar.setAttribute('aria-valuetext', message);
+      }
+    });
+    if (options.hideAfter) progressTimer = setTimeout(() => {
+      document.querySelectorAll('[data-nasa-progress]').forEach(panel => { panel.hidden = true; });
+    }, options.hideAfter);
+  }
+
   async function loadNasaData(options = {}) {
     const liveRange = options.auto ? defaultLiveRange() : null;
     const start = options.start || document.getElementById('firmsFrom')?.value || liveRange.start;
@@ -118,8 +141,10 @@
     if (!start || !end || start > end) { setStatus('Choose a valid date range.'); return; }
     const dayCount = Math.floor((Date.parse(end + 'T00:00:00Z') - Date.parse(start + 'T00:00:00Z')) / 86400000) + 1;
     if (dayCount > 800) { setStatus('Choose a range of 800 days or less to keep requests manageable.'); return; }
+    const totalRequests = Math.ceil(dayCount / 5);
     if (button) button.disabled = true;
     const records = [];
+    updateNasaProgress(0, totalRequests, 'Fetching actual NASA FIRMS data…', { indeterminate: true });
     try {
       let cursor = Date.parse(start + 'T00:00:00Z'), last = Date.parse(end + 'T00:00:00Z');
       let requestNumber = 0;
@@ -127,7 +152,9 @@
         const days = Math.min(5, Math.floor((last - cursor) / 86400000) + 1);
         const date = new Date(cursor).toISOString().slice(0, 10);
         requestNumber++;
-        setStatus('Requesting NASA FIRMS detections · ' + date + ' · chunk ' + requestNumber + '…');
+        const progressMessage = 'Fetching actual NASA FIRMS data · ' + date + ' · chunk ' + requestNumber + ' of ' + totalRequests + '…';
+        setStatus(progressMessage);
+        updateNasaProgress(requestNumber - 1, totalRequests, progressMessage, { indeterminate: true });
         const params = new URLSearchParams({ source, start: date, days: String(days) });
         const response = await fetch('/api/firms?' + params.toString(), { cache: 'no-store' });
         const text = await response.text();
@@ -138,6 +165,7 @@
         }
         if (/^invalid map key|map key not valid|error/i.test(text.trim())) throw new Error('NASA FIRMS did not accept this MAP_KEY or request.');
         csvRows(text).forEach(row => { const record = normalizeRow(row, source, records.length); if (record) records.push(record); });
+        updateNasaProgress(requestNumber, totalRequests, 'Received actual NASA FIRMS data · chunk ' + requestNumber + ' of ' + totalRequests + '.');
         cursor += days * 86400000;
       }
       if (!records.length && options.auto && source.endsWith('_NRT')) {
@@ -167,9 +195,12 @@
       document.getElementById('mZones').textContent = group(records).size;
       document.getElementById('mSeasons').textContent = unique(records.map(record => record.season)).length;
       renderMap();
-      setStatus('Loaded ' + records.length + ' NASA FIRMS detections across ' + group(records).size + ' computed spatial clusters.');
+      const completionMessage = 'Loaded actual NASA FIRMS data: ' + records.length + ' detections across ' + group(records).size + ' computed spatial clusters.';
+      setStatus(completionMessage);
+      updateNasaProgress(totalRequests, totalRequests, completionMessage, { hideAfter: 5000 });
     } catch (error) {
       setStatus(error instanceof TypeError ? 'Could not reach NASA FIRMS from this browser. Check network/CORS access; the local illustrative dataset remains active.' : error.message);
+      updateNasaProgress(0, 0, 'Could not fetch actual NASA FIRMS data. The clearly labelled local fallback remains active.', { error: true, hideAfter: 7000 });
     } finally {
       if (button) button.disabled = false;
     }
