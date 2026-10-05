@@ -141,6 +141,9 @@
         csvRows(text).forEach(row => { const record = normalizeRow(row, source, records.length); if (record) records.push(record); });
         cursor += days * 86400000;
       }
+      if (!records.length && options.auto && source.endsWith('_NRT')) {
+        return loadNasaData({ auto: true, source: 'VIIRS_SNPP_SP', start: '2022-11-01', end: '2022-11-01' });
+      }
       if (!records.length) throw new Error('NASA returned no detections for this product, date range, and pilot extent. Your local illustrative data is still active.');
       prepareClusters(records);
       const dataset = {
@@ -175,7 +178,7 @@
 
   function defaultLiveRange() {
     const end = new Date();
-    const start = new Date(end.getTime() - 2 * 86400000);
+    const start = new Date(end.getTime() - 4 * 86400000);
     return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
   }
 
