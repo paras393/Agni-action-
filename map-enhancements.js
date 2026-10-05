@@ -1,9 +1,59 @@
 /* Coordinate based map styling. All geometry is derived from the local records. */
 (function () {
+  const MAX_MAP_POINTS = 30;
+  window.sampleMapPoints = function sampleMapPoints(records, limit = MAX_MAP_POINTS) {
+    if (!Array.isArray(records)) return [];
+    const maximum = Math.min(records.length, Math.max(0, Math.floor(Number(limit) || 0)));
+    if (records.length <= maximum) return records;
+    if (!maximum) return [];
+
+    const grouped = new Map();
+    records.forEach((record, index) => {
+      const id = record.cluster_id || record.cluster_name || 'unclustered';
+      if (!grouped.has(id)) grouped.set(id, []);
+      grouped.get(id).push({ record, index });
+    });
+    const groups = [...grouped.entries()].map(([id, rows]) => ({ id, rows: rows.sort((a, b) =>
+      (a.record.latitude - b.record.latitude) || (a.record.longitude - b.record.longitude) ||
+      String(a.record.acq_date || '').localeCompare(String(b.record.acq_date || '')) || a.index - b.index
+    ) })).sort((a, b) => b.rows.length - a.rows.length || String(a.id).localeCompare(String(b.id))).slice(0, maximum);
+
+    const quotas = groups.map(() => 1);
+    let remaining = maximum - groups.length;
+    while (remaining > 0) {
+      let best = -1, bestScore = -1;
+      groups.forEach((group, index) => {
+        if (quotas[index] >= group.rows.length) return;
+        const score = Math.sqrt(group.rows.length) / (quotas[index] + 1);
+        if (score > bestScore) { best = index; bestScore = score; }
+      });
+      if (best < 0) break;
+      quotas[best]++;
+      remaining--;
+    }
+
+    const selected = [];
+    groups.forEach((group, groupIndex) => {
+      const count = Math.min(quotas[groupIndex], group.rows.length);
+      for (let slot = 0; slot < count; slot++) {
+        const index = Math.min(group.rows.length - 1, Math.floor((slot + 0.5) * group.rows.length / count));
+        selected.push(group.rows[index]);
+      }
+    });
+    return selected.sort((a, b) => a.index - b.index).map(item => item.record);
+  };
+
   const plot = document.getElementById('mapPlot');
   const layer = document.getElementById('points');
   if (!plot || !layer) return;
   state.zoom = 1;
+  const pointCount = document.createElement('span');
+  pointCount.id = 'mapPointCount';
+  pointCount.className = 'tag';
+  pointCount.setAttribute('role', 'status');
+  pointCount.setAttribute('aria-live', 'polite');
+  const dataBadge = document.getElementById('mapDataBadge');
+  if (dataBadge) dataBadge.insertAdjacentElement('afterend', pointCount);
 
   function dataBounds(records) {
     const lats = records.map(f => f.latitude), lons = records.map(f => f.longitude);
@@ -35,15 +85,14 @@
     const allById = new Map(allClusters.map(c => [c.id, c]));
     const allowed = state.recurring ? allClusters.filter(c => c.seasons.length >= 2).map(c => c.id) : allClusters.map(c => c.id);
     const shown = records.filter(f => allowed.includes(f.cluster_id));
+    const mapPoints = window.sampleMapPoints(shown, MAX_MAP_POINTS);
     const visibleClusters = clusters(shown).sort((a, b) => b.records.length - a.records.length || b.confidence - a.confidence);
     const bounds = dataBounds(state.fires);
     document.getElementById('empty').hidden = shown.length > 0;
     drawGeography(shown.length ? shown : state.fires, bounds);
+    pointCount.textContent = mapPoints.length + ' of ' + shown.length + ' filtered detections plotted · max ' + MAX_MAP_POINTS;
 
-    const old = [...layer.querySelectorAll('.point:not(.leaving)')].map(p => p.cloneNode(true));
-    layer.querySelectorAll('.leaving,.cluster-field,.cluster-marker').forEach(n => n.remove());
-    old.forEach(p => { p.classList.add('leaving'); p.disabled = true; layer.append(p); });
-    setTimeout(() => layer.querySelectorAll('.point.leaving').forEach(p => p.remove()), 270);
+    layer.querySelectorAll('.point,.cluster-field,.cluster-marker').forEach(n => n.remove());
 
     const strongest = visibleClusters[0];
     visibleClusters.forEach(c => {
@@ -55,7 +104,7 @@
       field.style.setProperty('--field', (kind === 'strong' ? 150 : kind === 'moderate' ? 118 : 92) + 'px');
       layer.append(field);
     });
-    shown.forEach(f => {
+    mapPoints.forEach(f => {
       const c = allById.get(f.cluster_id), p = projection(bounds, f), kind = category(c) === 'Strong recurring signal' ? 'strong' : category(c) === 'Moderate recurring signal' ? 'moderate' : f.confidence < 60 ? 'lower' : 'isolated';
       const diameter = Math.round(7 + f.confidence / 36 + Math.min(c.seasons.length, 3) * .7);
       const point = document.createElement('button');

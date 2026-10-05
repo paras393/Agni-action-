@@ -15,6 +15,8 @@ The local server and the included Netlify Function send requests to the official
 
 The app groups returned detections into proximity clusters using a 1.2 km rule. These are app-computed clusters, not NASA cluster identifiers. The locally included JSON remains illustrative and is never relabeled as NASA data.
 
+The overview and interactive map draw at most 30 representative detection points to keep the visual layer lightweight. This is a display-only sample: filters, totals, cluster calculations, and evidence continue to use the complete active dataset. The map reports how many filtered detections are plotted.
+
 ## Run locally
 
 Install Node.js, set `NASA_FIRMS_API_KEY` in `.env`, then run:
