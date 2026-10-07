@@ -1,4 +1,4 @@
-# 🔥 AgniAction
+# AgniAction
 
 Turning satellite fire observations into actionable environmental intelligence
 
@@ -9,8 +9,7 @@ It uses NASA FIRMS fire observations and turns them into an interactive experien
 The goal is to make important fire information easier to interpret for environmental monitoring, fire management, disaster response, research, and decision-making.
 
 ---
-
-🌍 The Problem
+ The Problem
 
 Fire activity can cause serious environmental damage, including vegetation loss, ecosystem damage, air pollution, and greenhouse-gas emissions.
 
@@ -28,7 +27,7 @@ AgniAction addresses this gap by converting satellite observations into a simple
 
 ---
 
-💡 The Solution
+ The Solution
 
 AgniAction provides an interactive map and analysis interface built around satellite fire observations.
 
@@ -46,7 +45,7 @@ The application also generates summaries from the active dataset, helping users 
 
 ---
 
-⚙️ How It Works
+ How It Works
 
 NASA FIRMS
      ↓
@@ -80,7 +79,7 @@ The fallback records are synthetic illustrative data and are clearly distinguish
 
 ---
 
-🌱 Climate & Environmental Impact
+Climate & Environmental Impact
 
 Fire activity can have significant environmental and climate consequences through vegetation loss, ecosystem damage, air pollution, and greenhouse-gas emissions.
 
@@ -100,7 +99,7 @@ AgniAction does not claim that the application itself prevents fires or directly
 
 ---
 
-👥 Who Can Benefit?
+Who Can Benefit?
 
 Forest & Fire-Management Teams
 
@@ -124,7 +123,7 @@ Can use historical and date-based exploration to study fire patterns.
 
 ---
 
-🔥 Key Features
+Key Features
 
 - Historical Fire View — Explore the predefined three-year fire dataset.
 - Explore by Date — Select a specific date or custom date range.
@@ -139,7 +138,7 @@ Can use historical and date-based exploration to study fire patterns.
 
 ---
 
-🛡️ Data Reliability & Limitations
+Data Reliability & Limitations
 
 AgniAction is an exploration and decision-support tool based on satellite observations.
 
@@ -151,7 +150,7 @@ The current map also does not include road or settlement context.
 
 ---
 
-🔐 Data & API Security
+Data & API Security
 
 NASA FIRMS access is handled through a server-side layer rather than exposing the API key in the frontend.
 
@@ -173,7 +172,7 @@ This keeps the NASA API key away from publicly accessible browser code.
 
 ---
 
-🛠️ Technology
+Technology
 
 - JavaScript
 - Node.js
@@ -186,7 +185,7 @@ This keeps the NASA API key away from publicly accessible browser code.
 
 ---
 
-📄 License
+License
 
 MIT License
 
