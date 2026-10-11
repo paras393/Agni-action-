@@ -2,6 +2,8 @@
 
 Turning satellite fire observations into actionable environmental intelligence
 
+AgniAction is a district-level prevention planner that identifies recurring probable crop-burning hotspots from satellite data and recommends where local teams should verify, educate, and intervene first.
+
 AgniAction is a web application that makes satellite-detected fire activity easier to explore, understand, and analyse.
 
 It uses NASA FIRMS fire observations and turns them into an interactive experience where users can explore historical fire activity, select specific dates, identify concentrated activity, and inspect individual fire locations.
